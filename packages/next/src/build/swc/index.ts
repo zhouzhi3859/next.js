@@ -166,11 +166,19 @@ export interface Binding {
   transformSync: any
   parse: any
   parseSync: any
+
   getTargetTriple(): string | undefined
+
   initCustomTraceSubscriber?: any
   teardownTraceSubscriber?: any
   initHeapProfiler?: any
   teardownHeapProfiler?: any
+  css: {
+    lightning: {
+      transform(transformOptions: any): Promise<any>
+      transformStyleAttr(attrOptions: any): Promise<any>
+    }
+  }
 }
 
 export async function loadBindings(
@@ -501,7 +509,7 @@ export type StyledString =
 
 export interface Issue {
   severity: string
-  category: string
+  stage: string
   filePath: string
   title: StyledString
   description?: StyledString
@@ -616,15 +624,21 @@ export interface UpdateInfo {
 
 export interface Project {
   update(options: Partial<ProjectOptions>): Promise<void>
+
   entrypointsSubscribe(): AsyncIterableIterator<TurbopackResult<Entrypoints>>
+
   hmrEvents(identifier: string): AsyncIterableIterator<TurbopackResult<Update>>
+
   hmrIdentifiersSubscribe(): AsyncIterableIterator<
     TurbopackResult<HmrIdentifiers>
   >
+
   getSourceForAsset(filePath: string): Promise<string | null>
+
   traceSource(
     stackFrame: TurbopackStackFrame
   ): Promise<TurbopackStackFrame | null>
+
   updateInfoSubscribe(
     aggregationMs: number
   ): AsyncIterableIterator<TurbopackResult<UpdateMessage>>
@@ -636,11 +650,15 @@ export type Route =
     }
   | {
       type: 'app-page'
-      htmlEndpoint: Endpoint
-      rscEndpoint: Endpoint
+      pages: {
+        originalName: string
+        htmlEndpoint: Endpoint
+        rscEndpoint: Endpoint
+      }[]
     }
   | {
       type: 'app-route'
+      originalName: string
       endpoint: Endpoint
     }
   | {
@@ -656,12 +674,14 @@ export type Route =
 export interface Endpoint {
   /** Write files for the endpoint to disk. */
   writeToDisk(): Promise<TurbopackResult<WrittenEndpoint>>
+
   /**
    * Listen to client-side changes to the endpoint.
    * After clientChanged() has been awaited it will listen to changes.
    * The async iterator will yield for each change.
    */
   clientChanged(): Promise<AsyncIterableIterator<TurbopackResult>>
+
   /**
    * Listen to server-side changes to the endpoint.
    * After serverChanged() has been awaited it will listen to changes.
@@ -883,11 +903,15 @@ function bindingToApi(binding: any, _wasm: boolean) {
           }
         | {
             type: 'app-page'
-            htmlEndpoint: NapiEndpoint
-            rscEndpoint: NapiEndpoint
+            pages: {
+              originalName: string
+              htmlEndpoint: NapiEndpoint
+              rscEndpoint: NapiEndpoint
+            }[]
           }
         | {
             type: 'app-route'
+            originalName: string
             endpoint: NapiEndpoint
           }
         | {
@@ -923,13 +947,17 @@ function bindingToApi(binding: any, _wasm: boolean) {
               case 'app-page':
                 route = {
                   type: 'app-page',
-                  htmlEndpoint: new EndpointImpl(nativeRoute.htmlEndpoint),
-                  rscEndpoint: new EndpointImpl(nativeRoute.rscEndpoint),
+                  pages: nativeRoute.pages.map((page) => ({
+                    originalName: page.originalName,
+                    htmlEndpoint: new EndpointImpl(page.htmlEndpoint),
+                    rscEndpoint: new EndpointImpl(page.rscEndpoint),
+                  })),
                 }
                 break
               case 'app-route':
                 route = {
                   type: 'app-route',
+                  originalName: nativeRoute.originalName,
                   endpoint: new EndpointImpl(nativeRoute.endpoint),
                 }
                 break
@@ -1421,6 +1449,14 @@ function loadNative(importPath?: string) {
           bindings.mdxCompile(src, toBuffer(getMdxOptions(options))),
         compileSync: (src: string, options: any) =>
           bindings.mdxCompileSync(src, toBuffer(getMdxOptions(options))),
+      },
+      css: {
+        lightning: {
+          transform: (transformOptions: any) =>
+            bindings.lightningCssTransform(transformOptions),
+          transformStyleAttr: (transformAttrOptions: any) =>
+            bindings.lightningCssTransformStyleAttribute(transformAttrOptions),
+        },
       },
     }
     return nativeBindings

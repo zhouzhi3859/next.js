@@ -860,32 +860,7 @@ export function getBrowserBodyText(browser: BrowserInterface) {
 }
 
 export function normalizeRegEx(src: string) {
-  return (
-    new RegExp(src).source
-      .replace(/\^\//g, '^\\/')
-      // normalize our ignores at the top-level so each
-      // snapshot doesn't need to be updated each time
-      .replace('(?!\\/_next\\/static)', '')
-      .replace('?(?:\\/)?$', '?$')
-      .replace('(?:\\/)?$', '?$')
-  )
-}
-
-export const normalizeRouteRegExes = (item: any) => {
-  const fields = [
-    'regex',
-    'routeRegex',
-    'namedRegex',
-    'namedDataRouteRegex',
-    'dataRouteRegex',
-  ]
-
-  for (const field of fields) {
-    if (typeof item[field] === 'string') {
-      item[field] = normalizeRegEx(item[field])
-    }
-  }
-  return item
+  return new RegExp(src).source.replace(/\^\//g, '^\\/')
 }
 
 function readJson(path: string) {
@@ -1079,12 +1054,12 @@ export async function getRedboxComponentStack(
   browser: BrowserInterface
 ): Promise<string> {
   await browser.waitForElementByCss(
-    '[data-nextjs-container-errors-pseudo-html]',
+    '[data-nextjs-container-errors-pseudo-html] code',
     30000
   )
   // TODO: the type for elementsByCss is incorrect
   const componentStackFrameElements: any = await browser.elementsByCss(
-    '[data-nextjs-container-errors-pseudo-html]'
+    '[data-nextjs-container-errors-pseudo-html] code'
   )
   const componentStackFrameTexts = await Promise.all(
     componentStackFrameElements.map((f) => f.innerText())
@@ -1093,7 +1068,7 @@ export async function getRedboxComponentStack(
   return componentStackFrameTexts.join('\n').trim()
 }
 
-export async function toggleComponentStack(
+export async function toggleCollapseComponentStack(
   browser: BrowserInterface
 ): Promise<void> {
   await browser
